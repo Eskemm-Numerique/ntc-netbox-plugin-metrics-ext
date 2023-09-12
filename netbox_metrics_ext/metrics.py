@@ -51,17 +51,22 @@ def metric_reports():
         Iterator[GaugeMetricFamily]
             netbox_report_stats: with report module, name and status as labels
     """
-    if netbox_version >= version.parse("2.9.0"):
-        from django.contrib.contenttypes.models import ContentType  # pylint: disable=import-outside-toplevel
-        from extras.models import Report  # pylint: disable=import-outside-toplevel,no-name-in-module
-        from core.models import Job
-
-        report_results = Job.objects.filter(object_type=ContentType.objects.get_for_model(Report))
-
-    else:
+    if netbox_version < version.parse("2.9.0"):
         from extras.models import ReportResult  # pylint: disable=import-outside-toplevel,no-name-in-module
 
         report_results = ReportResult.objects.all()
+    elif netbox_version < version.parse("3.5.0"):
+        from django.contrib.contenttypes.models import ContentType  # pylint: disable=import-outside-toplevel
+        from extras.models import Report, JobResult  # pylint: disable=import-outside-toplevel,no-name-in-module
+
+        report_results = JobResult.objects.filter(obj_type=ContentType.objects.get_for_model(Report))
+    else:
+        from django.contrib.contenttypes.models import ContentType  # pylint: disable=import-outside-toplevel
+        from extras.models import Report  # pylint: disable=import-outside-toplevel,no-name-in-module
+        from core.models import Job # pylint: disable=import-outside-toplevel,no-name-in-module
+
+        report_results = Job.objects.filter(object_type=ContentType.objects.get_for_model(Report))
+
 
     gauge = GaugeMetricFamily("netbox_report_stats", "Per report statistics", labels=["module", "name", "status"])
     for result in report_results:
